@@ -5,174 +5,75 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>CHAVOSH Chat Box</title>
 <style>
-  :root{
-    --tg-blue:#2aabee;
-    --tg-blue-dark:#2297d1;
-    --bg:#e7eff6;
-    --bubble-me:#c9e9ff;
-    --bubble-other:#ffffff;
-    --text:#1f2a37;
-    --muted:#6b7280;
-    --shadow:0 8px 20px rgba(0,0,0,0.08);
-    --radius:14px;
-  }
-  *{ box-sizing: border-box; }
-  html,body{ height:100%; }
-  body{
-    margin:0; background:linear-gradient(180deg,#f4f9ff, #e7eff6);
-    color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial;
-    display:flex; flex-direction:column;
-  }
-
-  /* Header */
-  header{
-    background:linear-gradient(135deg,var(--tg-blue),#33b3ff);
-    color:#fff; padding:12px 16px; display:flex; align-items:center; gap:12px;
-    position:sticky; top:0; z-index:10; box-shadow:var(--shadow);
-  }
-  header .title{
-    font-weight:700; letter-spacing:.3px; font-size:18px;
-  }
-  header .subtitle{
-    font-size:13px; opacity:.9;
-  }
-
-  /* Chat area */
-  #chat{
-    flex:1; overflow-y:auto; padding:18px 16px 10px; scroll-behavior:smooth;
-  }
-  .message-wrapper{
-    display:flex; flex-direction:column; margin:8px 0;
-    animation:fadeInUp .25s ease; gap:4px;
-  }
-  .message-wrapper.me{ align-items:flex-end; }
-  .message-wrapper.other{ align-items:flex-start; }
-
-  .author{
-    font-size:12px; color:var(--muted); margin:0 6px 2px; user-select:none;
-  }
-  .message{
-    max-width:70ch; background:var(--bubble-other); border-radius: var(--radius);
-    padding:10px 12px; line-height:1.4; box-shadow:var(--shadow);
-    position:relative; word-wrap:break-word; white-space:pre-wrap;
-    direction:auto;
-  }
-  .message.me{
-    background:var(--bubble-me);
-    border-top-right-radius:6px;
-  }
-  .message.other{
-    border-top-left-radius:6px;
-  }
-  .message a{ color:#0a66c2; text-decoration:underline; word-break:break-word; }
-
-  .message-meta{
-    font-size:11px; color:var(--muted);
-    opacity:0; transition:opacity .15s ease;
-    margin:0 8px; user-select:none;
-  }
-  .message-wrapper:hover .message-meta{ opacity:1; }
-  .file-chip{
-    display:flex; align-items:center; gap:10px;
-  }
-  .file-icon{
-    width:28px; height:28px; border-radius:6px; background:#e3f3ff; color:#0a66c2;
-    display:flex; align-items:center; justify-content:center; font-weight:700;
-    box-shadow:inset 0 0 0 1px rgba(10,102,194,0.15);
-  }
-  .file-name{ font-weight:600; }
-  .file-size{ font-size:12px; color:var(--muted); }
-
-  /* Composer */
-  .composer{
-    position:sticky; bottom:0; background:#f7fbff; padding:10px;
-    box-shadow:0 -6px 18px rgba(0,0,0,0.06);
-  }
-  .composer-bar{
-    display:flex; align-items:flex-end; gap:8px;
-    background:#fff; border-radius:16px; border:1px solid #e5eef6; padding:8px;
-  }
-  .input{
-    flex:1; min-height:40px; max-height:140px; overflow:auto;
-    outline:none; border:none; padding:8px 10px; border-radius:10px;
-    font-size:15px; line-height:1.4; direction:auto;
-  }
-  .input[contenteditable="true"]:empty:before{
-    content:attr(data-placeholder); color:#9aa4b2;
-  }
-  .btn{
-    border:none; background:var(--tg-blue); color:#fff; padding:10px 14px;
-    border-radius:12px; cursor:pointer; transition:transform .05s ease, background .15s ease;
-    display:inline-flex; align-items:center; gap:8px; font-weight:600;
-  }
-  .btn:hover{ background:var(--tg-blue-dark); }
-  .btn:active{ transform:translateY(1px); }
-  .btn.secondary{
-    background:#eef6ff; color:#0a66c2; border:1px solid #d5e8ff;
-  }
-  .hidden{ display:none; }
-
-  /* Progress */
-  .progress-row{ display:flex; align-items:center; gap:8px; margin-top:6px; padding:0 4px; }
-  .progress{
-    flex:1; height:6px; background:#eaf2fb; border-radius:999px; overflow:hidden;
-  }
-  .progress > .bar{
-    height:100%; width:0%; background:linear-gradient(90deg,#33b3ff,#2aabee);
-    transition:width .1s linear;
-  }
-  .percent{ font-size:12px; color:var(--muted); min-width:36px; text-align:right; }
-
-  /* Scrollbar */
-  #chat::-webkit-scrollbar{ width:10px; }
-  #chat::-webkit-scrollbar-thumb{ background:#c7d7ea; border-radius:10px; }
-  #chat::-webkit-scrollbar-track{ background:transparent; }
-
-  @keyframes fadeInUp{
-    from{ opacity:0; transform:translateY(6px); }
-    to{ opacity:1; transform:translateY(0); }
-  }
+  body { margin:0; font-family: Arial, sans-serif; background:#e5ddd5; display:flex; flex-direction:column; height:100vh; }
+  header { background:#2aabee; color:white; padding:10px; font-size:18px; }
+  #subtitle { font-size:12px; opacity:0.9; }
+  #chat { flex:1; overflow-y:auto; padding:10px; }
+  .message-wrapper { margin:8px 0; display:flex; flex-direction:column; }
+  .message-wrapper.me { align-items:flex-end; }
+  .author { font-size:12px; color:#555; margin-bottom:2px; }
+  .message { background:#fff; padding:8px 12px; border-radius:8px; max-width:70%; word-wrap:break-word; }
+  .message.me { background:#dcf8c6; }
+  .message-meta { font-size:10px; color:#777; margin-top:2px; }
+  .file-chip { display:flex; align-items:center; gap:8px; }
+  .file-icon { background:#e3f3ff; padding:4px; border-radius:4px; }
+  .file-name a { color:#0a66c2; text-decoration:underline; }
+  .composer { padding:10px; background:#f0f0f0; }
+  .composer-bar { display:flex; gap:8px; }
+  .input { flex:1; min-height:40px; max-height:120px; overflow:auto; background:white; border:1px solid #ccc; border-radius:6px; padding:6px; }
+  .btn { padding:6px 10px; border:none; border-radius:4px; cursor:pointer; }
+  .btn.primary { background:#2aabee; color:white; }
+  .btn.secondary { background:#ddd; }
+  #progressRow { display:flex; align-items:center; gap:8px; margin-top:4px; }
+  .progress { flex:1; height:6px; background:#ccc; border-radius:3px; overflow:hidden; }
+  .bar { height:100%; background:#2aabee; width:0%; }
+  #contextMenu { position:absolute; display:none; list-style:none; margin:0; padding:4px 0; background:#fff; border:1px solid #ccc; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,0.15); z-index:1000; }
+  #contextMenu li { padding:6px 16px; cursor:pointer; }
+  #contextMenu li:hover { background:#eee; }
+  #nameModal { position:fixed; inset:0; background:rgba(0,0,0,0.35); display:none; align-items:center; justify-content:center; z-index:2000; }
+  #nameModal .box { background:#fff; padding:18px; border-radius:8px; width:300px; }
 </style>
 </head>
 <body>
-  <header>
-    <div>
-      <div class="title">CHAVOSH Chat Box</div>
-      <div class="subtitle" id="subtitle">Welcome</div>
-    </div>
-  </header>
+<header>
+  CHAVOSH Chat Box
+  <div id="subtitle">Welcome</div>
+</header>
 
-  <main id="chat" aria-live="polite" aria-busy="false"></main>
+<main id="chat"></main>
 
-  <div class="composer">
-    <div class="composer-bar">
-      <button class="btn secondary" id="attachBtn" title="Upload file">📎 Attach</button>
-      <input class="hidden" type="file" id="fileInput" />
-      <div id="input" class="input" contenteditable="true" data-placeholder="Type a message… (Enter to send, Shift+Enter for new line)"></div>
-      <button class="btn" id="sendBtn" title="Send">➤ Send</button>
-    </div>
-    <div class="progress-row hidden" id="progressRow">
-      <div class="progress"><div class="bar" id="progressBar"></div></div>
-      <div class="percent" id="progressPct">0%</div>
-    </div>
-    <div style="display:flex; gap:8px; margin-top:8px;">
-      <button class="btn secondary" id="clearBtn" title="Clear chat">🧹 Clear</button>
+<div class="composer">
+  <div class="composer-bar">
+    <button class="btn secondary" id="attachBtn">📎</button>
+    <input type="file" id="fileInput" style="display:none" />
+    <div id="input" class="input" contenteditable="true" data-placeholder="Type a message…"></div>
+    <button class="btn primary" id="sendBtn">Send</button>
+    <button class="btn secondary" id="clearBtn">🧹</button>
+  </div>
+  <div id="progressRow" style="display:none;">
+    <div class="progress"><div class="bar" id="progressBar"></div></div>
+    <div id="progressPct">0%</div>
+  </div>
+</div>
+
+<ul id="contextMenu">
+  <li data-action="delete">🗑 Delete</li>
+  <li data-action="copy">📋 Copy</li>
+  <li data-action="save">💾 Save file</li>
+</ul>
+
+<div id="nameModal">
+  <div class="box">
+    <h3>Welcome to CHAVOSH</h3>
+    <p>Please enter your name:</p>
+    <input type="text" id="nameInput" style="width:100%; padding:6px;" />
+    <div style="margin-top:10px; text-align:right;">
+      <button class="btn secondary" id="nameCancel">Skip</button>
+      <button class="btn primary" id="nameSave">OK</button>
     </div>
   </div>
+</div>
 
-  <!-- Name modal -->
-  <div id="nameModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.35); display:none; align-items:center; justify-content:center; z-index:20;">
-    <div style="background:#fff; padding:18px; border-radius:14px; width:min(92vw,420px); box-shadow:var(--shadow);">
-      <div style="font-weight:700; margin-bottom:10px;">Welcome to CHAVOSH</div>
-      <div style="font-size:14px; color:var(--muted); margin-bottom:10px;">Please enter your name to join the chat.</div>
-      <input id="nameInput" type="text" placeholder="Your name" style="width:100%; padding:10px 12px; border:1px solid #dbe6f3; border-radius:10px; font-size:15px;" />
-      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:12px;">
-        <button class="btn secondary" id="nameCancel">Skip</button>
-        <button class="btn" id="nameSave">Continue</button>
-      </div>
-    </div>
-  </div>
-
-  <script src="script.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
