@@ -3,139 +3,89 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const sanitizeHtml = require('sanitize-html');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Ensure uploads directory exists
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
-// Serve uploaded files
-app.use('/uploads', express.static(UPLOAD_DIR, {
-  setHeaders: (res) => {
-    res.set('Cache-Control', 'public, max-age=31536000, immutable');
-  }
-}));
-
+app.use('/uploads', express.static(UPLOAD_DIR));
 app.use(cors());
 app.use(express.json());
 
-// Multer storage to keep original extension and unique filename
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
-    const base = path.basename(file.originalname, ext).replace(/[^\p{L}\p{N}\-_ ]/gu, '').slice(0, 60);
-    const safeBase = base || 'file';
+    const base = path.basename(file.originalname, ext).replace(/[^\p{L}\p{N}\-_ ]/gu, '').slice(0, 60) || 'file';
     const unique = Date.now() + '-' + Math.random().toString(36).slice(2, 8);
-    cb(null, `${safeBase}-${unique}${ext}`);
+    cb(null, `${base}-${unique}${ext}`);
   }
 });
 const upload = multer({ storage });
 
-// In-memory messages
-// type: 'text' | 'file'
-// { id, author, type, html?, fileUrl?, fileName?, fileSize?, mime?, date }
 let messages = [];
-
-// HTML sanitizer config to preserve common styles safely
-const sanitizeConfig = {
-  allowedTags: [
-    'b','i','em','strong','u','s','sup','sub','br','p','div','span','blockquote','pre','code','ul','ol','li','a'
-  ],
-  allowedAttributes: {
-    a: ['href', 'name', 'target', 'rel'],
-    '*': ['dir', 'lang']
-  },
-  // Limit styles to text emphasis and alignment; block dangerous CSS
-  allowedStyles: {
-    '*': {
-      'text-align': [/^left$|^right$|^center$|^justify$/i],
-      'font-weight': [/^bold$|^700$|^600$/i],
-      'font-style': [/^italic$/i],
-      'text-decoration': [/^underline$|^line-through$/i],
-      'direction': [/^rtl$|^ltr$/i]
-    }
-  },
-  transformTags: {
-    'a': (tagName, attribs) => {
-      const href = attribs.href || '#';
-      // Force safe links
-      if (!/^https?:\/\//i.test(href)) {
-        return { tagName: 'span', attribs: {}, text: attribs.href || '' };
-      }
-      return {
-        tagName: 'a',
-        attribs: { href, target: '_blank', rel: 'noopener noreferrer' }
-      };
-    }
-  },
-  disallowedTagsMode: 'discard'
-};
-
-// Helpers
 const makeId = () => `${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
 
-// Send a text message (HTML allowed, sanitized)
+// Send text message
 app.post('/messages', (req, res) => {
-  const { author, html } = req.body || {};
-  if (!author || typeof author !== 'string' || !html) {
-    return res.status(400).json({ error: 'author and html are required' });
-  }
-  const clean = sanitizeHtml(html, sanitizeConfig).trim();
-  if (!clean) {
-    return res.status(400).json({ error: 'Message content is empty after sanitization' });
-  }
-  const msg = {
+  const { author, html, message } = req.body || {};
+  const content = html || (message && message.replace(/\n/g, '<br>'));
+  if (!content) return res.status(400).send('Message required');
+  messages.push({
     id: makeId(),
-    author: author.slice(0, 50),
+    author: author || 'Guest',
     type: 'text',
-    html: clean,
+    html: content,
     date: new Date().toISOString()
-  };
-  messages.push(msg);
-  res.status(200).json({ ok: true, id: msg.id });
+  });
+  res.sendStatus(200);
 });
 
-// Get all messages
-app.get('/messages', (req, res) => {
-  res.json(messages);
-});
+// Get messages
+app.get('/messages', (req, res) => res.json(messages));
 
-// Clear all messages (history)
+// Delete all messages & files
 app.delete('/messages', (req, res) => {
+  messages.forEach(msg => {
+    if (msg.type === 'file' && msg.fileUrl) {
+      const filePath = path.join(__dirname, msg.fileUrl.replace(/^\/+/, ''));
+      fs.unlink(filePath, () => {});
+    }
+  });
   messages = [];
   res.sendStatus(200);
 });
 
-// Upload a file and post a file message
-app.post('/upload', upload.single('file'), (req, res) => {
-  const author = (req.body.author || '').slice(0, 50);
-  if (!author) return res.status(400).json({ error: 'author is required' });
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+// Delete one message
+app.delete('/messages/:id', (req, res) => {
+  const idx = messages.findIndex(m => m.id === req.params.id);
+  if (idx === -1) return res.status(404).send('Not found');
+  const msg = messages[idx];
+  if (msg.type === 'file' && msg.fileUrl) {
+    const filePath = path.join(__dirname, msg.fileUrl.replace(/^\/+/, ''));
+    fs.unlink(filePath, () => {});
+  }
+  messages.splice(idx, 1);
+  res.sendStatus(200);
+});
 
+// Upload file
+app.post('/upload', upload.single('file'), (req, res) => {
+  const author = req.body.author || 'Guest';
+  if (!req.file) return res.status(400).send('No file');
   const fileUrl = `/uploads/${req.file.filename}`;
-  const msg = {
+  messages.push({
     id: makeId(),
     author,
     type: 'file',
     fileUrl,
     fileName: req.file.originalname,
     fileSize: req.file.size,
-    mime: req.file.mimetype,
     date: new Date().toISOString()
-  };
-  messages.push(msg);
-
-  res.status(200).json({
-    ok: true,
-    url: fileUrl,
-    originalName: req.file.originalname,
-    size: req.file.size,
-    mime: req.file.mimetype
   });
+  res.json({ ok: true });
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
