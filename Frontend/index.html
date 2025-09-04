@@ -5,12 +5,13 @@
   <link rel="icon" sizes="64x64" href="favicon-64.png">
 <link rel="icon" sizes="192x192" href="favicon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn&display=swap" rel="stylesheet">
 
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>CHAVOSH Chat Box</title>
 <style>
-  body { margin:0; font-family: Arial, sans-serif; background:#e5ddd5; display:flex; flex-direction:column; height:100vh; }
+  body { margin:0; font-family: 'Vazirmatn', sans-serif'; background:#e5ddd5; display:flex; flex-direction:column; height:100vh; }
   header { background:#2aabee; color:white; padding:10px; font-size:18px; }
   #subtitle { font-size:12px; opacity:0.9; }
   #chat { flex:1; overflow-y:auto; padding:10px; }
@@ -41,7 +42,7 @@
 </head>
 <body>
 <header>
-  CHAVOSH Chat Box
+  CHAVOSH 
   <div id="subtitle">Welcome</div>
 </header>
 
@@ -62,16 +63,16 @@
 </div>
 
 <ul id="contextMenu">
-  <li data-action="delete">🗑 Delete</li>
-  <li data-action="copy">📋 Copy</li>
-  <li data-action="save">💾 Save file</li>
+  <li data-action="حذف">🗑 Delete</li>
+  <li data-action="کپی">📋 Copy</li>
+  <li data-action="ذخیره">💾 Save file</li>
 </ul>
 
 <div id="nameModal">
   <div class="box">
     <h3>Welcome to CHAVOSH</h3>
     <p>Please enter your name:</p>
-    <input type="text" id="nameInput" style="width:100%; padding:6px;" />
+    <input type="text" id="nameInput" style="width:100%; padding:6px; font-family: 'Vazirmatn', sans-serif;" />
     <div style="margin-top:10px; text-align:right;">
       <button class="btn secondary" id="nameCancel">Skip</button>
       <button class="btn primary" id="nameSave">OK</button>
@@ -82,6 +83,7 @@
 <script src="script.js"></script>
 </body>
 </html>
+
 
 
 
