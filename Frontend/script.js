@@ -236,8 +236,31 @@ async function loadMessages(scrollToEnd = false) {
       chip.appendChild(info);
       bubble.appendChild(chip);
     } else {
+      // For text messages, insert the HTML content (already sanitized server-side)
       bubble.innerHTML = msg.html || '';
     }
 
     const meta = document.createElement('div');
     meta.className = 'message-meta';
+    meta.textContent = formatDate(msg.date);
+
+    wrap.appendChild(author);
+    wrap.appendChild(bubble);
+    wrap.appendChild(meta);
+    chatEl.appendChild(wrap);
+  });
+
+  if (scrollToEnd) {
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+}
+
+/* ---------------- Initialize ---------------- */
+async function init() {
+  await ensureName();
+  await loadMessages(true);
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(loadMessages, 3000);
+}
+
+init();
