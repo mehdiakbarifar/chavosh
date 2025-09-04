@@ -47,7 +47,7 @@ function ensureName() {
   const existing = getCookie('chat_name');
   if (existing) {
     myName = existing;
-    subtitleEl.textContent = `Signed in as ${myName}`;
+    subtitleEl.textContent = `ورود با نام ${myName}`;
     return Promise.resolve();
   }
   return new Promise(res => {
@@ -55,14 +55,14 @@ function ensureName() {
     nameSave.onclick = () => {
       myName = nameInput.value.trim() || 'Guest';
       setCookie('chat_name', myName);
-      subtitleEl.textContent = `Signed in as ${myName}`;
+      subtitleEl.textContent = `ورود به عنوان ${myName}`;
       nameModal.style.display = 'none';
       res();
     };
     nameCancel.onclick = () => {
-      myName = 'Guest';
+      myName = 'غریبه';
       setCookie('chat_name', myName);
-      subtitleEl.textContent = `Signed in as ${myName}`;
+      subtitleEl.textContent = `ورود به عنوان  ${myName}`;
       nameModal.style.display = 'none';
       res();
     };
