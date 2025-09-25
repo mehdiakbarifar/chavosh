@@ -324,6 +324,8 @@ function initChat() {
 
 /* Restore session if already approved */
 (function restoreSession() {
+  document.getElementById('chatContainer').style.display = 'block';
+
   const savedEmail = getCookie('chat_email');
   const savedName = getCookie('chat_name');
   if (savedEmail && savedName) {
@@ -345,4 +347,5 @@ function initChat() {
     initChat();
   }
 })();
+
 
