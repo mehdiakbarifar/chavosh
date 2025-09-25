@@ -205,4 +205,25 @@ app.post('/upload', requireApproved, upload.single('file'), (req, res) => {
   const author = req.body.author || req.userEmail;
   if (!req.file) return res.status(400).send('No file');
   const fileUrl = `/uploads/${req.file.filename}`;
-  messages.push({ id: makeId
+  messages.push({
+    id: makeId(),
+    author,
+    type: 'file',
+    fileUrl,
+    fileName: req.file.originalname,
+    fileSize: req.file.size,
+    date: new Date().toISOString()
+  });
+  res.json({ ok: true });
+});
+
+/* -------- Friendly root -------- */
+app.get('/', (req, res) => {
+  res.send('CHAVOSH backend is running. Please visit https://chavosh.vercel.app');
+});
+
+/* ------------------------------------------ */
+
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+
