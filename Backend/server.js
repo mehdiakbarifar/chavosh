@@ -5,20 +5,17 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const dotenv = require('dotenv');
-const nodemailer = require('nodemailer');
 const { OAuth2Client } = require('google-auth-library');
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:5500'; // Change to your deployed frontend
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID; // Required
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'akbarifar@gmail.com';
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:5500';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'akbarifar@gmail.com').toLowerCase();
 
-if (!GOOGLE_CLIENT_ID) {
-  console.error('GOOGLE_CLIENT_ID is required in .env');
-}
+if (!GOOGLE_CLIENT_ID) console.error('GOOGLE_CLIENT_ID is missing in .env');
 
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
@@ -40,8 +37,8 @@ function writeJson(file, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
 
-let approvedUsers = readJson(APPROVED_PATH);
-let pendingUsers = readJson(PENDING_PATH);
+let approvedUsers = readJson(APPROVED_PATH).map(e => e.toLowerCase());
+let pendingUsers = readJson(PENDING_PATH).map(e => e.toLowerCase());
 
 // In-memory messages
 let messages = [];
@@ -64,39 +61,24 @@ app.use('/uploads', express.static(UPLOAD_DIR));
 app.use(cors({ origin: FRONTEND_ORIGIN, credentials: true }));
 app.use(express.json());
 
-// Nodemailer transporter (use Gmail App Password)
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.MAIL_USER,       // e.g. your Gmail address
-    pass: process.env.MAIL_APP_PASS    // Gmail App Password
+// Auth helpers
+function requireApproved(req, res, next) {
+  const email = (req.header('X-User-Email') || '').toLowerCase();
+  if (!email || !approvedUsers.includes(email)) {
+    return res.status(403).json({ error: 'Not authorized' });
   }
-});
-
-// Send approval email to admin
-async function sendApprovalEmail(email) {
-  const approvalLink = `${process.env.SERVER_PUBLIC_URL || `http://localhost:${PORT}`}/approve?email=${encodeURIComponent(email)}`;
-
-  const mail = {
-    from: `"CHAVOSH Admin" <${process.env.MAIL_USER}>`,
-    to: ADMIN_EMAIL,
-    subject: 'New User Approval Needed',
-    html: `
-      <p>User <b>${email}</b> requested access to CHAVOSH Chat Box.</p>
-      <p><a href="${approvalLink}">Click here to approve</a></p>
-      <p>If you didn’t expect this, you can ignore this email.</p>
-    `
-  };
-
-  try {
-    await transporter.sendMail(mail);
-    console.log('Approval email sent to admin for:', email);
-  } catch (err) {
-    console.error('Error sending approval email:', err);
+  req.userEmail = email;
+  next();
+}
+function requireAdmin(req, res, next) {
+  const email = (req.header('X-User-Email') || '').toLowerCase();
+  if (email !== ADMIN_EMAIL) {
+    return res.status(403).json({ error: 'Admin only' });
   }
+  next();
 }
 
-// Verify Google ID token and handle approval logic
+// Google Sign-In verification and approval logic
 app.post('/auth/google', async (req, res) => {
   const { token } = req.body || {};
   if (!token) return res.status(400).json({ error: 'Missing token' });
@@ -105,57 +87,69 @@ app.post('/auth/google', async (req, res) => {
   try {
     const ticket = await client.verifyIdToken({ idToken: token, audience: GOOGLE_CLIENT_ID });
     payload = ticket.getPayload();
-  } catch (err) {
+  } catch {
     return res.status(401).json({ error: 'Invalid token' });
   }
 
-  const email = payload.email;
+  const email = (payload.email || '').toLowerCase();
   const name = payload.name || email;
 
-  // Already approved
+  if (!email) return res.status(400).json({ error: 'No email in token' });
+
   if (approvedUsers.includes(email)) {
     return res.json({ status: 'approved', email, name });
   }
 
-  // Not approved => add to pending and email admin
   if (!pendingUsers.includes(email)) {
     pendingUsers.push(email);
     writeJson(PENDING_PATH, pendingUsers);
-    sendApprovalEmail(email);
   }
 
   return res.json({ status: 'pending' });
 });
 
-// Admin approval endpoint
-app.get('/approve', (req, res) => {
-  const email = req.query.email;
-  if (!email) return res.status(400).send('Missing email');
+/* -------- Admin API (secure) -------- */
 
-  // Move from pending to approved
-  if (!approvedUsers.includes(email)) {
-    approvedUsers.push(email);
-    writeJson(APPROVED_PATH, approvedUsers);
-  }
-  pendingUsers = pendingUsers.filter(e => e !== email);
-  writeJson(PENDING_PATH, pendingUsers);
-
-  res.send(`User ${email} approved. You may close this tab.`);
+// List pending users (admin only)
+app.get('/admin/pending', requireAdmin, (req, res) => {
+  res.json({ pending: pendingUsers });
 });
 
-// Gate endpoints: require approved user via email header
-function requireApproved(req, res, next) {
-  const email = req.header('X-User-Email');
-  if (!email || !approvedUsers.includes(email)) {
-    return res.status(403).json({ error: 'Not authorized' });
+// List approved users (admin only)
+app.get('/admin/approved', requireAdmin, (req, res) => {
+  res.json({ approved: approvedUsers });
+});
+
+// Approve a user (admin only)
+app.post('/admin/approve', requireAdmin, (req, res) => {
+  const { email } = req.body || {};
+  const target = (email || '').toLowerCase();
+  if (!target) return res.status(400).json({ error: 'Missing email' });
+
+  if (!approvedUsers.includes(target)) {
+    approvedUsers.push(target);
+    writeJson(APPROVED_PATH, approvedUsers);
   }
-  req.userEmail = email;
-  next();
-}
+  pendingUsers = pendingUsers.filter(e => e !== target);
+  writeJson(PENDING_PATH, pendingUsers);
+
+  res.json({ ok: true, approved: target });
+});
+
+// Remove (deny) a pending user (admin only)
+app.post('/admin/deny', requireAdmin, (req, res) => {
+  const { email } = req.body || {};
+  const target = (email || '').toLowerCase();
+  if (!target) return res.status(400).json({ error: 'Missing email' });
+
+  pendingUsers = pendingUsers.filter(e => e !== target);
+  writeJson(PENDING_PATH, pendingUsers);
+
+  res.json({ ok: true, denied: target });
+});
 
 /* -------- Chat endpoints (protected) -------- */
 
-// Send text message
 app.post('/messages', requireApproved, (req, res) => {
   const { author, html, message } = req.body || {};
   const content = html || (message && message.replace(/\n/g, '<br>'));
@@ -170,10 +164,8 @@ app.post('/messages', requireApproved, (req, res) => {
   res.sendStatus(200);
 });
 
-// Get messages
 app.get('/messages', requireApproved, (req, res) => res.json(messages));
 
-// Delete all messages & files
 app.delete('/messages', requireApproved, (req, res) => {
   messages.forEach(msg => {
     if (msg.type === 'file' && msg.fileUrl) {
@@ -185,7 +177,6 @@ app.delete('/messages', requireApproved, (req, res) => {
   res.sendStatus(200);
 });
 
-// Delete one message by ID
 app.delete('/messages/:id', requireApproved, (req, res) => {
   const idx = messages.findIndex(m => m.id === req.params.id);
   if (idx === -1) return res.status(404).send('Not found');
@@ -198,7 +189,6 @@ app.delete('/messages/:id', requireApproved, (req, res) => {
   res.sendStatus(200);
 });
 
-// Upload file
 app.post('/upload', requireApproved, upload.single('file'), (req, res) => {
   const author = req.body.author || req.userEmail;
   if (!req.file) return res.status(400).send('No file');
