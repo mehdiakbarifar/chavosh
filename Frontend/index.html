@@ -7,6 +7,7 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     body { margin:0; font-family: Arial, sans-serif; background:#e5ddd5; display:flex; flex-direction:column; height:100vh; }
+    #chatContainer { display:none; flex-direction:column; height:100vh; }
     header { background:#2aabee; color:white; padding:10px; font-size:18px; display:flex; justify-content:space-between; align-items:center; }
     #subtitle { font-size:12px; opacity:0.9; }
     #adminArea a { color:#fff; text-decoration:underline; font-size:12px; }
@@ -32,25 +33,20 @@
     #contextMenu { position:absolute; display:none; list-style:none; margin:0; padding:4px 0; background:#fff; border:1px solid #ccc; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,0.15); z-index:1000; }
     #contextMenu li { padding:6px 16px; cursor:pointer; }
     #contextMenu li:hover { background:#eee; }
-    #blankOverlay { position: fixed; inset: 0; background: #fff; display: none; align-items: center; justify-content: center; z-index: 3000; }
-    #loginBox { display:flex; flex-direction:column; align-items:center; justify-content:center; margin: 12px 0; }
+    #blankOverlay { position: fixed; inset: 0; background: #fff; display: none; align-items: center; justify-content: center; z-index: 3000; font-size: 18px; font-weight: bold; color: #333; }
+    #loginBox { display:flex; flex-direction:column; align-items:center; justify-content:center; margin: 20px auto; gap:12px; }
+    #loginBox input { padding:8px; border-radius:4px; border:1px solid #ccc; width:200px; }
     #adminArea { margin-left: 8px; }
-    input[type=text], input[type=password] { padding:6px; margin:4px; border:1px solid #ccc; border-radius:4px; }
   </style>
 </head>
 <body>
-<header>
-  <div>CHAVOSH Chat Box</div>
-  <div id="subtitle">Please sign in</div>
-  <div id="adminArea"></div>
-</header>
 
-<div id="blankOverlay"></div>
+<div id="blankOverlay">Awaiting admin approval...</div>
 
 <div id="loginBox">
   <!-- Google Sign-In -->
   <div id="g_id_onload"
-       data-client_id="YOUR_GOOGLE_CLIENT_ID"
+       data-client_id="175338462827-bq5vp6m3km0fs20hsfmvugm2m0ptu5gp.apps.googleusercontent.com"
        data-callback="handleGoogleLogin"
        data-auto_prompt="false">
   </div>
@@ -75,19 +71,28 @@
   </div>
 </div>
 
-<main id="chat"></main>
+<!-- Chat UI (hidden until approved) -->
+<div id="chatContainer">
+  <header>
+    <div>CHAVOSH Chat Box</div>
+    <div id="subtitle">Please sign in</div>
+    <div id="adminArea"></div>
+  </header>
 
-<div class="composer">
-  <div class="composer-bar">
-    <button class="btn secondary" id="attachBtn">📎</button>
-    <input type="file" id="fileInput" style="display:none" />
-    <div id="input" class="input" contenteditable="true" data-placeholder="Type a message…"></div>
-    <button class="btn primary" id="sendBtn">Send</button>
-    <button class="btn secondary" id="clearBtn">🧹</button>
-  </div>
-  <div id="progressRow">
-    <div class="progress"><div class="bar" id="progressBar"></div></div>
-    <div id="progressPct">0%</div>
+  <main id="chat"></main>
+
+  <div class="composer">
+    <div class="composer-bar">
+      <button class="btn secondary" id="attachBtn">📎</button>
+      <input type="file" id="fileInput" style="display:none" />
+      <div id="input" class="input" contenteditable="true" data-placeholder="Type a message…"></div>
+      <button class="btn primary" id="sendBtn">Send</button>
+      <button class="btn secondary" id="clearBtn">🧹</button>
+    </div>
+    <div id="progressRow">
+      <div class="progress"><div class="bar" id="progressBar"></div></div>
+      <div id="progressPct">0%</div>
+    </div>
   </div>
 </div>
 
