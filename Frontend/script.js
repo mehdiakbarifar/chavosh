@@ -16,6 +16,7 @@ const progressPct = document.getElementById('progressPct');
 const contextMenu = document.getElementById('contextMenu');
 const blankOverlay = document.getElementById('blankOverlay');
 const loginBox = document.getElementById('loginBox');
+const chatContainer = document.getElementById('chatContainer');
 
 let contextTarget = null;
 let myName = null;
@@ -96,7 +97,7 @@ function handleAuthResponse(data, username) {
     subtitleEl.textContent = `Signed in as ${myName}`;
     blankOverlay.style.display = 'none';
     loginBox.style.display = 'none';
-    document.getElementById('chatContainer').style.display = 'block';
+    chatContainer.style.display = 'flex';
 
     if ((myEmail || '').toLowerCase() === 'akbarifar@gmail.com') {
       const adminLink = document.createElement('a');
@@ -114,10 +115,9 @@ function handleAuthResponse(data, username) {
     loginBox.style.display = 'none';
     subtitleEl.textContent = 'Awaiting admin approval';
     adminArea.innerHTML = '';
-    document.getElementById('chatContainer').style.display = 'none';
+    chatContainer.style.display = 'none';
   }
 }
-
 
 /* Auth header helper */
 function authHeaders() {
@@ -324,14 +324,14 @@ function initChat() {
 
 /* Restore session if already approved */
 (function restoreSession() {
-  document.getElementById('chatContainer').style.display = 'block';
-
   const savedEmail = getCookie('chat_email');
   const savedName = getCookie('chat_name');
   if (savedEmail && savedName) {
     myEmail = savedEmail;
     myName = savedName;
     subtitleEl.textContent = `Signed in as ${myName}`;
+    loginBox.style.display = 'none';
+    chatContainer.style.display = 'flex';
 
     if ((savedEmail || '').toLowerCase() === 'akbarifar@gmail.com') {
       const adminLink = document.createElement('a');
@@ -343,9 +343,6 @@ function initChat() {
       adminArea.innerHTML = '';
     }
 
-    loginBox.style.display = 'none';
     initChat();
   }
 })();
-
-
