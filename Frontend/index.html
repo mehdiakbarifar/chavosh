@@ -33,8 +33,9 @@
     #contextMenu li { padding:6px 16px; cursor:pointer; }
     #contextMenu li:hover { background:#eee; }
     #blankOverlay { position: fixed; inset: 0; background: #fff; display: none; align-items: center; justify-content: center; z-index: 3000; }
-    #loginBox { display:flex; align-items:center; justify-content:center; margin: 12px 0; }
+    #loginBox { display:flex; flex-direction:column; align-items:center; justify-content:center; margin: 12px 0; }
     #adminArea { margin-left: 8px; }
+    input[type=text], input[type=password] { padding:6px; margin:4px; border:1px solid #ccc; border-radius:4px; }
   </style>
 </head>
 <body>
@@ -47,8 +48,9 @@
 <div id="blankOverlay"></div>
 
 <div id="loginBox">
+  <!-- Google Sign-In -->
   <div id="g_id_onload"
-       data-client_id="175338462827-bq5vp6m3km0fs20hsfmvugm2m0ptu5gp.apps.googleusercontent.com"
+       data-client_id="YOUR_GOOGLE_CLIENT_ID"
        data-callback="handleGoogleLogin"
        data-auto_prompt="false">
   </div>
@@ -59,6 +61,17 @@
        data-text="sign_in_with"
        data-shape="rect"
        data-logo_alignment="left">
+  </div>
+
+  <!-- Local Login -->
+  <div style="margin-top: 20px; text-align: center;">
+    <h4>Or use local login</h4>
+    <input type="text" id="username" placeholder="Username" />
+    <input type="password" id="password" placeholder="Password" />
+    <div style="margin-top: 8px;">
+      <button onclick="register()" class="btn primary">Register</button>
+      <button onclick="login()" class="btn secondary">Login</button>
+    </div>
   </div>
 </div>
 
