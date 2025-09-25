@@ -1,4 +1,5 @@
-const backendURL = 'https://chavosh.onrender.com';
+// frontend/script.js
+const backendURL = 'https://chavosh.onrender.com'; // Change to your backend URL
 
 const chatEl = document.getElementById('chat');
 const inputEl = document.getElementById('input');
@@ -7,19 +8,19 @@ const attachBtn = document.getElementById('attachBtn');
 const fileInput = document.getElementById('fileInput');
 const clearBtn = document.getElementById('clearBtn');
 const subtitleEl = document.getElementById('subtitle');
+const adminArea = document.getElementById('adminArea');
 
 const progressRow = document.getElementById('progressRow');
 const progressBar = document.getElementById('progressBar');
 const progressPct = document.getElementById('progressPct');
 
-const nameModal = document.getElementById('nameModal');
-const nameInput = document.getElementById('nameInput');
-const nameSave = document.getElementById('nameSave');
-const nameCancel = document.getElementById('nameCancel');
-
 const contextMenu = document.getElementById('contextMenu');
+const blankOverlay = document.getElementById('blankOverlay');
+const loginBox = document.getElementById('loginBox');
+
 let contextTarget = null;
 let myName = null;
+let myEmail = null;
 let pollTimer = null;
 
 /* Cookie helpers */
@@ -37,36 +38,58 @@ function getCookie(name) {
 const formatDate = iso => new Date(iso).toLocaleString();
 function formatSize(bytes) {
   const units = ['B','KB','MB','GB'];
-  let i=0, num=bytes;
+  let i=0, num=bytes || 0;
   while(num>=1024 && i<units.length-1){ num/=1024; i++; }
   return `${num.toFixed(num>=10||i===0?0:1)} ${units[i]}`;
 }
 
-/* Name prompt */
-function ensureName() {
-  const existing = getCookie('chat_name');
-  if (existing) {
-    myName = existing;
-    subtitleEl.textContent = `ورود با نام ${myName}`;
-    return Promise.resolve();
+/* Google login callback */
+window.handleGoogleLogin = async (response) => {
+  const idToken = response.credential;
+  try {
+    const res = await fetch(`${backendURL}/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: idToken })
+    });
+    const data = await res.json();
+
+    if (data.status === 'approved') {
+      myName = data.name || data.email;
+      myEmail = data.email;
+      setCookie('chat_name', myName);
+      setCookie('chat_email', myEmail);
+      subtitleEl.textContent = `Signed in as ${myName}`;
+      blankOverlay.style.display = 'none';
+      loginBox.style.display = 'none';
+
+      // Show admin link only for Akbarifar
+      if ((myEmail || '').toLowerCase() === 'akbarifar@gmail.com') {
+        const adminLink = document.createElement('a');
+        adminLink.href = './admin.html';
+        adminLink.textContent = 'Admin page';
+        adminArea.innerHTML = '';
+        adminArea.appendChild(adminLink);
+      } else {
+        adminArea.innerHTML = '';
+      }
+
+      initChat();
+    } else {
+      blankOverlay.style.display = 'flex'; // Block access
+      loginBox.style.display = 'none';
+      subtitleEl.textContent = 'Awaiting admin approval';
+      adminArea.innerHTML = '';
+    }
+  } catch {
+    alert('Login failed. Please try again.');
   }
-  return new Promise(res => {
-    nameModal.style.display = 'flex';
-    nameSave.onclick = () => {
-      myName = nameInput.value.trim() || 'Guest';
-      setCookie('chat_name', myName);
-      subtitleEl.textContent = `ورود به عنوان ${myName}`;
-      nameModal.style.display = 'none';
-      res();
-    };
-    nameCancel.onclick = () => {
-      myName = 'غریبه';
-      setCookie('chat_name', myName);
-      subtitleEl.textContent = `ورود به عنوان  ${myName}`;
-      nameModal.style.display = 'none';
-      res();
-    };
-  });
+};
+
+/* Auth header helper */
+function authHeaders() {
+  const email = myEmail || getCookie('chat_email');
+  return email ? { 'X-User-Email': email } : {};
 }
 
 /* Paste handler */
@@ -88,7 +111,7 @@ sendBtn.onclick = sendMessage;
 attachBtn.onclick = () => fileInput.click();
 fileInput.onchange = uploadFile;
 clearBtn.onclick = async () => {
-  await fetch(`${backendURL}/messages`, { method: 'DELETE' });
+  await fetch(`${backendURL}/messages`, { method: 'DELETE', headers: { ...authHeaders(), 'Content-Type': 'application/json' }});
   loadMessages();
 };
 
@@ -115,7 +138,7 @@ contextMenu.addEventListener('click', async e => {
   if (!action || !contextTarget) return;
 
   if (action === 'delete') {
-    await fetch(`${backendURL}/messages/${contextTarget.id}`, { method: 'DELETE' });
+    await fetch(`${backendURL}/messages/${contextTarget.id}`, { method: 'DELETE', headers: authHeaders() });
     loadMessages();
   }
   if (action === 'copy') {
@@ -139,14 +162,13 @@ contextMenu.addEventListener('click', async e => {
 
 /* Send message */
 async function sendMessage() {
-  if (!myName) await ensureName();
   const html = inputEl.innerHTML.trim();
   const plain = inputEl.innerText.trim();
   if (!plain) return;
 
   await fetch(`${backendURL}/messages`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify({ author: myName, html, message: plain })
   });
   inputEl.innerHTML = '';
@@ -168,6 +190,7 @@ function uploadFile() {
 
   const xhr = new XMLHttpRequest();
   xhr.open('POST', `${backendURL}/upload`, true);
+  xhr.setRequestHeader('X-User-Email', myEmail || getCookie('chat_email') || '');
 
   xhr.upload.onprogress = e => {
     if (e.lengthComputable) {
@@ -194,7 +217,11 @@ function uploadFile() {
 
 /* Load messages */
 async function loadMessages(scrollToEnd = false) {
-  const res = await fetch(`${backendURL}/messages`);
+  const res = await fetch(`${backendURL}/messages`, { headers: authHeaders() });
+  if (!res.ok) {
+    blankOverlay.style.display = 'flex';
+    return;
+  }
   const data = await res.json();
   chatEl.innerHTML = '';
 
@@ -236,7 +263,6 @@ async function loadMessages(scrollToEnd = false) {
       chip.appendChild(info);
       bubble.appendChild(chip);
     } else {
-      // For text messages, insert the HTML content (already sanitized server-side)
       bubble.innerHTML = msg.html || '';
     }
 
@@ -255,31 +281,34 @@ async function loadMessages(scrollToEnd = false) {
   }
 }
 
-/* ---------------- Initialize ---------------- */
-async function init() {
-  await ensureName();
-  await loadMessages(true);
+/* Initialize chat (after approval) */
+function initChat() {
+  blankOverlay.style.display = 'none';
+  loadMessages(true);
   if (pollTimer) clearInterval(pollTimer);
   pollTimer = setInterval(loadMessages, 3000);
 }
 
-init();
+/* Restore session if already approved */
+(function restoreSession() {
+  const savedEmail = getCookie('chat_email');
+  const savedName = getCookie('chat_name');
+  if (savedEmail && savedName) {
+    myEmail = savedEmail;
+    myName = savedName;
+    subtitleEl.textContent = `Signed in as ${myName}`;
 
-function handleGoogleLogin(response) {
-  const idToken = response.credential;
-  // Optionally send to backend for verification
-  const payload = parseJwt(idToken);
-  myName = payload.name || payload.email;
-  setCookie('chat_name', myName);
-  subtitleEl.textContent = `Signed in as ${myName}`;
-  nameModal.style.display = 'none';
-  loadMessages(true);
-}
+    if ((savedEmail || '').toLowerCase() === 'akbarifar@gmail.com') {
+      const adminLink = document.createElement('a');
+      adminLink.href = './admin.html';
+      adminLink.textContent = 'Admin page';
+      adminArea.innerHTML = '';
+      adminArea.appendChild(adminLink);
+    } else {
+      adminArea.innerHTML = '';
+    }
 
-function parseJwt(token) {
-  const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-  const json = decodeURIComponent(atob(base64).split('').map(c =>
-    '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
-  ).join(''));
-  return JSON.parse(json);
-}
+    loginBox.style.display = 'none';
+    initChat();
+  }
+})();
