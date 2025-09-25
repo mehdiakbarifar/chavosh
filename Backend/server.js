@@ -37,6 +37,7 @@ function writeJson(file, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
 
+// Load approved/pending users
 let approvedUsers = readJson(APPROVED_PATH).map(e => e.toLowerCase());
 let pendingUsers = readJson(PENDING_PATH).map(e => e.toLowerCase());
 
@@ -45,10 +46,6 @@ if (!approvedUsers.includes(ADMIN_EMAIL)) {
   approvedUsers.push(ADMIN_EMAIL);
   writeJson(APPROVED_PATH, approvedUsers);
 }
-
-// In-memory messages
-let messages = [];
-
 
 // In-memory messages
 let messages = [];
@@ -120,17 +117,14 @@ app.post('/auth/google', async (req, res) => {
 
 /* -------- Admin API (secure) -------- */
 
-// List pending users (admin only)
 app.get('/admin/pending', requireAdmin, (req, res) => {
   res.json({ pending: pendingUsers });
 });
 
-// List approved users (admin only)
 app.get('/admin/approved', requireAdmin, (req, res) => {
   res.json({ approved: approvedUsers });
 });
 
-// Approve a user (admin only)
 app.post('/admin/approve', requireAdmin, (req, res) => {
   const { email } = req.body || {};
   const target = (email || '').toLowerCase();
@@ -146,7 +140,6 @@ app.post('/admin/approve', requireAdmin, (req, res) => {
   res.json({ ok: true, approved: target });
 });
 
-// Remove (deny) a pending user (admin only)
 app.post('/admin/deny', requireAdmin, (req, res) => {
   const { email } = req.body || {};
   const target = (email || '').toLowerCase();
@@ -215,4 +208,11 @@ app.post('/upload', requireApproved, upload.single('file'), (req, res) => {
   res.json({ ok: true });
 });
 
+/* -------- Friendly root -------- */
+app.get('/', (req, res) => {
+  res.send('CHAVOSH backend is running. Please visit https://chavosh.vercel.app');
+});
 
+/* ------------------------------------------ */
+
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
