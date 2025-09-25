@@ -214,14 +214,5 @@ app.post('/upload', requireApproved, upload.single('file'), (req, res) => {
   });
   res.json({ ok: true });
 });
-let approvedUsers = readJson(APPROVED_PATH).map(e => e.toLowerCase());
-if (!approvedUsers.includes(ADMIN_EMAIL)) {
-  approvedUsers.push(ADMIN_EMAIL);
-  writeJson(APPROVED_PATH, approvedUsers);
-}
-
-/* ------------------------------------------ */
-
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 
