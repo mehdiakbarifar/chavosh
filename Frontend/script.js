@@ -1,5 +1,4 @@
-// frontend/script.js
-const backendURL = 'https://chavosh.onrender.com'; // Change to your backend URL
+const backendURL = 'https://chavosh.onrender.com';
 
 const chatEl = document.getElementById('chat');
 const inputEl = document.getElementById('input');
@@ -53,38 +52,69 @@ window.handleGoogleLogin = async (response) => {
       body: JSON.stringify({ token: idToken })
     });
     const data = await res.json();
-
-    if (data.status === 'approved') {
-      myName = data.name || data.email;
-      myEmail = data.email;
-      setCookie('chat_name', myName);
-      setCookie('chat_email', myEmail);
-      subtitleEl.textContent = `Signed in as ${myName}`;
-      blankOverlay.style.display = 'none';
-      loginBox.style.display = 'none';
-
-      // Show admin link only for Akbarifar
-      if ((myEmail || '').toLowerCase() === 'akbarifar@gmail.com') {
-        const adminLink = document.createElement('a');
-        adminLink.href = './admin.html';
-        adminLink.textContent = 'Admin page';
-        adminArea.innerHTML = '';
-        adminArea.appendChild(adminLink);
-      } else {
-        adminArea.innerHTML = '';
-      }
-
-      initChat();
-    } else {
-      blankOverlay.style.display = 'flex'; // Block access
-      loginBox.style.display = 'none';
-      subtitleEl.textContent = 'Awaiting admin approval';
-      adminArea.innerHTML = '';
-    }
+    handleAuthResponse(data, data.email);
   } catch {
-    alert('Login failed. Please try again.');
+    alert('Google login failed. Please try again.');
   }
 };
+
+/* Local login */
+async function register() {
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value.trim();
+  if (!username || !password) return alert('Please enter both username and password');
+
+  const res = await fetch(`${backendURL}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password })
+  });
+  const data = await res.json();
+  handleAuthResponse(data, username);
+}
+
+async function login() {
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value.trim();
+  if (!username || !password) return alert('Please enter both username and password');
+
+  const res = await fetch(`${backendURL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password })
+  });
+  const data = await res.json();
+  handleAuthResponse(data, username);
+}
+
+function handleAuthResponse(data, username) {
+  if (data.status === 'approved') {
+    myName = data.name || username;
+    myEmail = data.email || username;
+    setCookie('chat_name', myName);
+    setCookie('chat_email', myEmail);
+    subtitleEl.textContent = `Signed in as ${myName}`;
+    blankOverlay.style.display = 'none';
+    loginBox.style.display = 'none';
+
+    if ((myEmail || '').toLowerCase() === 'akbarifar@gmail.com') {
+      const adminLink = document.createElement('a');
+      adminLink.href = './admin.html';
+      adminLink.textContent = 'Admin page';
+      adminArea.innerHTML = '';
+      adminArea.appendChild(adminLink);
+    } else {
+      adminArea.innerHTML = '';
+    }
+
+    initChat();
+  } else {
+    blankOverlay.style.display = 'flex';
+    loginBox.style.display = 'none';
+    subtitleEl.textContent = 'Awaiting admin approval';
+    adminArea.innerHTML = '';
+  }
+}
 
 /* Auth header helper */
 function authHeaders() {
@@ -312,4 +342,3 @@ function initChat() {
     initChat();
   }
 })();
-
