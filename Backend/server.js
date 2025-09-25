@@ -40,6 +40,16 @@ function writeJson(file, data) {
 let approvedUsers = readJson(APPROVED_PATH).map(e => e.toLowerCase());
 let pendingUsers = readJson(PENDING_PATH).map(e => e.toLowerCase());
 
+// Always ensure the admin is approved
+if (!approvedUsers.includes(ADMIN_EMAIL)) {
+  approvedUsers.push(ADMIN_EMAIL);
+  writeJson(APPROVED_PATH, approvedUsers);
+}
+
+// In-memory messages
+let messages = [];
+
+
 // In-memory messages
 let messages = [];
 const makeId = () => `${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
@@ -213,4 +223,5 @@ if (!approvedUsers.includes(ADMIN_EMAIL)) {
 /* ------------------------------------------ */
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
 
