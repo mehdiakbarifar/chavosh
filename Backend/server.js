@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const dotenv = require('dotenv');
 const { OAuth2Client } = require('google-auth-library');
+const bcrypt = require('bcrypt');
 
 dotenv.config();
 
@@ -23,25 +24,28 @@ const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 const APPROVED_PATH = path.join(__dirname, 'approved.json');
 const PENDING_PATH = path.join(__dirname, 'pending.json');
+const USERS_PATH = path.join(__dirname, 'users.json');
 
 // Ensure folders/files exist
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 if (!fs.existsSync(APPROVED_PATH)) fs.writeFileSync(APPROVED_PATH, JSON.stringify([]));
 if (!fs.existsSync(PENDING_PATH)) fs.writeFileSync(PENDING_PATH, JSON.stringify([]));
+if (!fs.existsSync(USERS_PATH)) fs.writeFileSync(USERS_PATH, JSON.stringify({}));
 
-// Helpers for persistence
+// Helpers
 function readJson(file) {
-  try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return []; }
+  try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return {}; }
 }
 function writeJson(file, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
 
-// Load approved/pending users
-let approvedUsers = readJson(APPROVED_PATH).map(e => e.toLowerCase());
-let pendingUsers = readJson(PENDING_PATH).map(e => e.toLowerCase());
+// Load approved/pending
+let approvedUsers = readJson(APPROVED_PATH).map ? readJson(APPROVED_PATH).map(e => e.toLowerCase()) : [];
+let pendingUsers = readJson(PENDING_PATH).map ? readJson(PENDING_PATH).map(e => e.toLowerCase()) : [];
+let users = readJson(USERS_PATH);
 
-// Always ensure the admin is approved
+// Always ensure admin is approved
 if (!approvedUsers.includes(ADMIN_EMAIL)) {
   approvedUsers.push(ADMIN_EMAIL);
   writeJson(APPROVED_PATH, approvedUsers);
@@ -85,7 +89,7 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-// Google Sign-In verification and approval logic
+/* -------- Google Sign-In -------- */
 app.post('/auth/google', async (req, res) => {
   const { token } = req.body || {};
   if (!token) return res.status(400).json({ error: 'Missing token' });
@@ -101,8 +105,6 @@ app.post('/auth/google', async (req, res) => {
   const email = (payload.email || '').toLowerCase();
   const name = payload.name || email;
 
-  if (!email) return res.status(400).json({ error: 'No email in token' });
-
   if (approvedUsers.includes(email)) {
     return res.json({ status: 'approved', email, name });
   }
@@ -115,104 +117,92 @@ app.post('/auth/google', async (req, res) => {
   return res.json({ status: 'pending' });
 });
 
-/* -------- Admin API (secure) -------- */
+/* -------- Local username/password -------- */
+app.post('/auth/register', async (req, res) => {
+  const { username, password } = req.body || {};
+  if (!username || !password) return res.status(400).json({ error: 'Missing fields' });
 
-app.get('/admin/pending', requireAdmin, (req, res) => {
-  res.json({ pending: pendingUsers });
+  const uname = username.toLowerCase();
+  if (users[uname]) return res.status(400).json({ error: 'User already exists' });
+
+  const hash = await bcrypt.hash(password, 10);
+  users[uname] = { hash };
+  writeJson(USERS_PATH, users);
+
+  if (uname === ADMIN_EMAIL) {
+    if (!approvedUsers.includes(uname)) {
+      approvedUsers.push(uname);
+      writeJson(APPROVED_PATH, approvedUsers);
+    }
+    return res.json({ status: 'approved', email: uname, name: 'Admin' });
+  }
+
+  if (!pendingUsers.includes(uname)) {
+    pendingUsers.push(uname);
+    writeJson(PENDING_PATH, pendingUsers);
+  }
+  res.json({ status: 'pending' });
 });
 
-app.get('/admin/approved', requireAdmin, (req, res) => {
-  res.json({ approved: approvedUsers });
+app.post('/auth/login', async (req, res) => {
+  const { username, password } = req.body || {};
+  if (!username || !password) return res.status(400).json({ error: 'Missing fields' });
+
+  const uname = username.toLowerCase();
+  const user = users[uname];
+  if (!user) return res.status(400).json({ error: 'User not found' });
+
+  const ok = await bcrypt.compare(password, user.hash);
+  if (!ok) return res.status(401).json({ error: 'Invalid password' });
+
+  if (approvedUsers.includes(uname)) {
+    return res.json({ status: 'approved', email: uname, name: uname });
+  }
+  res.json({ status: 'pending' });
 });
 
+/* -------- Admin API -------- */
+app.get('/admin/pending', requireAdmin, (req, res) => res.json({ pending: pendingUsers }));
+app.get('/admin/approved', requireAdmin, (req, res) => res.json({ approved: approvedUsers }));
 app.post('/admin/approve', requireAdmin, (req, res) => {
   const { email } = req.body || {};
   const target = (email || '').toLowerCase();
   if (!target) return res.status(400).json({ error: 'Missing email' });
-
   if (!approvedUsers.includes(target)) {
     approvedUsers.push(target);
     writeJson(APPROVED_PATH, approvedUsers);
   }
   pendingUsers = pendingUsers.filter(e => e !== target);
   writeJson(PENDING_PATH, pendingUsers);
-
   res.json({ ok: true, approved: target });
 });
-
 app.post('/admin/deny', requireAdmin, (req, res) => {
   const { email } = req.body || {};
   const target = (email || '').toLowerCase();
   if (!target) return res.status(400).json({ error: 'Missing email' });
-
   pendingUsers = pendingUsers.filter(e => e !== target);
   writeJson(PENDING_PATH, pendingUsers);
-
   res.json({ ok: true, denied: target });
 });
 
-/* -------- Chat endpoints (protected) -------- */
-
+/* -------- Chat endpoints -------- */
 app.post('/messages', requireApproved, (req, res) => {
   const { author, html, message } = req.body || {};
   const content = html || (message && message.replace(/\n/g, '<br>'));
   if (!content) return res.status(400).send('Message required');
-  messages.push({
-    id: makeId(),
-    author: author || req.userEmail,
-    type: 'text',
-    html: content,
-    date: new Date().toISOString()
-  });
+  messages.push({ id: makeId(), author: author || req.userEmail, type: 'text', html: content, date: new Date().toISOString() });
   res.sendStatus(200);
 });
-
 app.get('/messages', requireApproved, (req, res) => res.json(messages));
-
-app.delete('/messages', requireApproved, (req, res) => {
-  messages.forEach(msg => {
-    if (msg.type === 'file' && msg.fileUrl) {
-      const filePath = path.join(__dirname, msg.fileUrl.replace(/^\/+/, ''));
-      fs.unlink(filePath, () => {});
-    }
-  });
-  messages = [];
-  res.sendStatus(200);
-});
-
+app.delete('/messages', requireApproved, (req, res) => { messages = []; res.sendStatus(200); });
 app.delete('/messages/:id', requireApproved, (req, res) => {
   const idx = messages.findIndex(m => m.id === req.params.id);
   if (idx === -1) return res.status(404).send('Not found');
-  const msg = messages[idx];
-  if (msg.type === 'file' && msg.fileUrl) {
-    const filePath = path.join(__dirname, msg.fileUrl.replace(/^\/+/, ''));
-    fs.unlink(filePath, () => {});
-  }
   messages.splice(idx, 1);
   res.sendStatus(200);
 });
-
 app.post('/upload', requireApproved, upload.single('file'), (req, res) => {
   const author = req.body.author || req.userEmail;
   if (!req.file) return res.status(400).send('No file');
   const fileUrl = `/uploads/${req.file.filename}`;
-  messages.push({
-    id: makeId(),
-    author,
-    type: 'file',
-    fileUrl,
-    fileName: req.file.originalname,
-    fileSize: req.file.size,
-    date: new Date().toISOString()
-  });
-  res.json({ ok: true });
-});
-
-/* -------- Friendly root -------- */
-app.get('/', (req, res) => {
-  res.send('CHAVOSH backend is running. Please visit https://chavosh.vercel.app');
-});
-
-/* ------------------------------------------ */
-
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  messages.push({ id: makeId
