@@ -96,6 +96,7 @@ function handleAuthResponse(data, username) {
     subtitleEl.textContent = `Signed in as ${myName}`;
     blankOverlay.style.display = 'none';
     loginBox.style.display = 'none';
+    document.getElementById('chatContainer').style.display = 'block';
 
     if ((myEmail || '').toLowerCase() === 'akbarifar@gmail.com') {
       const adminLink = document.createElement('a');
@@ -113,8 +114,10 @@ function handleAuthResponse(data, username) {
     loginBox.style.display = 'none';
     subtitleEl.textContent = 'Awaiting admin approval';
     adminArea.innerHTML = '';
+    document.getElementById('chatContainer').style.display = 'none';
   }
 }
+
 
 /* Auth header helper */
 function authHeaders() {
@@ -342,3 +345,4 @@ function initChat() {
     initChat();
   }
 })();
+
