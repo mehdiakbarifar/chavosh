@@ -1,5 +1,5 @@
 // frontend/admin.js
-const backendURL = 'https://chavosh.vercel.app/admin.html'; // Change to your backend URL
+const backendURL = 'https://chavosh.onrender.com'; // Change to your backend URL
 
 const statusEl = document.getElementById('status');
 const pendingListEl = document.getElementById('pendingList');
@@ -114,3 +114,4 @@ async function deny(email) {
     alert('Deny failed.');
   }
 }
+
