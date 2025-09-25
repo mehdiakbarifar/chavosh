@@ -312,3 +312,4 @@ function initChat() {
     initChat();
   }
 })();
+
